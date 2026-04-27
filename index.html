@@ -1,1 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>班级活动交互统计（渐变柱状图）</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; }
+canvas { width: 100% !important; height: 600px !important; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+th { background-color: #f0f0f0; }
+td.participated { background-color: #b3e5fc; }
+button { padding: 2px 5px; margin: 0 1px; cursor: pointer; font-size:12px; }
+input { padding: 4px; margin-right: 5px; }
+.add-activity { margin-top: 10px; }
+</style>
+</head>
+<body>
+<h2>班级活动横向柱状图（颜色渐变）</h2>
+<canvas id="activityChart"></canvas>
 
+<h2>活动参与情况</h2>
+<div class="add-activity">
+  <input type="text" id="newActivityName" placeholder="活动名称">
+  <input type="date" id="newActivityDate">
+  <button onclick="addActivity()">添加活动</button>
+</div>
+
+<table id="activityTable">
+  <thead>
+    <tr id="tableHeader"></tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<script>
+// 同学名单
+const students = [
+  "张梦凯","韩济鸿","吴阳","徐佳敏","户梦雪","高妍","何广林","余相龙","刘亦婷","刘艺恒",
+  "唐香霖","宋平","廖雨萌","张笑妍","文晓诗","李丹","杨崟杰","林莹莹","段文燕","江响雪",
+  "王文钊","王水贵","王莹莹","覃嘉东","贾明凤","赵永灿","鲁祺","黄韦敏","何怡","冯欣雨",
+  "史嘉昊","叶雨阳","周渝峰","和琪","张宇婷","彭靓婷","徐畅","敬佳怡","李茜","李辰涵怡",
+  "王贺瑶","王颢臻","郑文勋"
+];
+
+// 初始活动
+let activities = [
+  { name: "运动会", date: "2026-04-20", participants: ["张梦凯","韩济鸿","吴阳"] },
+  { name: "文艺晚会", date: "2026-04-21", participants: ["徐佳敏","户梦雪","高妍"] }
+];
+
+let chart;
+
+// 计算每个同学总次数
+function computeCounts() {
+  const map = {};
+  students.forEach(s => map[s] = 0);
+  activities.forEach(act => act.participants.forEach(p => { if(map[p] !== undefined) map[p]++; }));
+  return map;
+}
+
+// 生成颜色渐变
+function getColors(counts) {
+  const maxCount = Math.max(...counts);
+  return counts.map(c => {
+    const intensity = maxCount === 0 ? 0 : c / maxCount; // 0~1
+    const r = 54;
+    const g = 162;
+    const b = 235;
+    return `rgba(${r},${g},${b},${0.4 + 0.6*intensity})`; // 透明度随次数增加
+  });
+}
+
+// 渲染柱状图（整数刻度 + 渐变颜色）
+function renderChart() {
+  const countsMap = computeCounts();
+  const names = students;
+  const counts = names.map(n => countsMap[n]);
+  const colors = getColors(counts);
+
+  if(chart) chart.destroy();
+  const ctx = document.getElementById('activityChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: names, datasets: [{ label: '活动次数', data: counts, backgroundColor: colors, borderColor:'rgba(54,162,235,1)', borderWidth:1 }] },
+    options: {
+      indexAxis: 'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      scales: {
+        x: {
+          beginAtZero:true,
+          ticks: {
+            stepSize:1,
+            callback: function(value){ return Number(value).toFixed(0); }
+          }
+        },
+        y:{ ticks:{ autoSkip:false,font:{size:12}} }
+      },
+      plugins:{ legend:{ display:false } }
+    }
+  });
+}
+
+// 渲染活动表格
+function renderTable() {
+  const headerRow = document.getElementById('tableHeader');
+  headerRow.innerHTML = '<th>活动名称</th><th>日期</th>' + students.map(s => `<th>${s}</th>`).join('');
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  activities.forEach((act, index) => {
+    const tr = document.createElement('tr');
+    const tds = students.map(s => {
+      const participated = act.participants.includes(s);
+      return `<td class="${participated?'participated':''}">
+                ${participated?'✔':''}
+                <button onclick="toggleStudent(${index},'${s}')">+ / −</button>
+              </td>`;
+    }).join('');
+    tr.innerHTML = `<td>${act.name}</td><td>${act.date}</td>${tds}`;
+    tbody.appendChild(tr);
+  });
+}
+
+// 单人加减号
+function toggleStudent(actIndex, student) {
+  const act = activities[actIndex];
+  if(act.participants.includes(student)) {
+    act.participants = act.participants.filter(p=>p!==student);
+  } else {
+    act.participants.push(student);
+  }
+  renderChart();
+  renderTable();
+}
+
+// 添加新活动
+function addActivity() {
+  const name = document.getElementById('newActivityName').value.trim();
+  const date = document.getElementById('newActivityDate').value;
+  if(!name || !date) { alert('请输入活动名称和日期'); return; }
+  activities.push({ name, date, participants: [] });
+  document.getElementById('newActivityName').value = '';
+  document.getElementById('newActivityDate').value = '';
+  renderChart();
+  renderTable();
+}
+
+// 初始化
+renderChart();
+renderTable();
+</script>
+</body>
+</html>
